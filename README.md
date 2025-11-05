@@ -27,3 +27,9 @@
 ## Troubleshooting
 - If `aws_sfn_state_machine` fails because `definition` contains unsupported characters or is too large, create an S3 object with the JSON and refer to it, or split your ASL.
 - If Lambda fails to execute due to missing permissions, check CloudWatch logs and add permissions to the IAM role.
+
+
+Deploy QA
+cd aws-infra/environments/qa
+terraform init
+terraform apply -var="environment=qa"
