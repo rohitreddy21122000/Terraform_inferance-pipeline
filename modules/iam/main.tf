@@ -1,6 +1,3 @@
-variable "env" { type = string }
-variable "lambda_arns" { type = list(string) default = [] }
-
 resource "aws_iam_role" "sfn_exec" {
   name = "sfn-exec-${var.env}"
   assume_role_policy = jsonencode({

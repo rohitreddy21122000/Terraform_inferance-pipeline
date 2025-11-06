@@ -1,7 +1,3 @@
-variable "env" { type = string }
-variable "role_arn" { type = string }
-variable "lambda_arn" { type = string }
-
 data "template_file" "asl" {
   template = file("${path.module}/state_machine.asl.json.tpl")
   vars = {

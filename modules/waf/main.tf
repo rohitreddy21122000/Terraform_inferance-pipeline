@@ -1,6 +1,3 @@
-variable "env" { type = string }
-variable "rate_limit" { type = number default = 2000 }
-
 resource "aws_wafv2_web_acl" "web_acl" {
   name  = "tech-waf-${var.env}"
   scope = "REGIONAL"
