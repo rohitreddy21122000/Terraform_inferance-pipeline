@@ -18,6 +18,8 @@ module "lambda" {
   source = "../../modules/lambda"
   name   = "tech-extract-text"
   env    = local.env
+  timeout = var.lambda_timeout
+  memory_size = var.lambda_memory_size
 }
 
 module "iam" {
@@ -36,15 +38,15 @@ module "step_function" {
 module "api_gateway" {
   source = "../../modules/api_gateway"
   env = local.env
-  lambda_arn = module.lambda.lambda_arn
-  lambda_name = module.lambda.lambda_name
+  step_function_arn = module.step_function.state_machine_arn
   region = var.region
 }
 
 module "waf" {
   source = "../../modules/waf"
   env = local.env
-  rate_limit = 2000
+  rate_limit = var.waf_rate_limit
+  api_gateway_arn = module.api_gateway.api_gateway_arn
 }
 
 output "api_endpoint" {

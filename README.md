@@ -1,35 +1,134 @@
-# Terraform_inferance-pipeline => Tech Contract Analysis - Terraform
+# Terraform Infrastructure for Tech Contract Analysis Pipeline
 
-## prerequisites
-- Terraform >= 1.2
-- AWS CLI configured for your account (use AWS_PROFILE or env vars)
-- An S3 bucket + DynamoDB table for remote state (or use local state initially)
-- Ensure you have permissions to create Lambda, Step Functions, API Gateway, Secrets Manager, WAF (some features are regional).
+This repository contains Terraform infrastructure as code for deploying a serverless tech contract analysis pipeline on AWS.
 
-## Quickstart (QA environment)
-1. cd infra/envs/qa
-2. terraform init
-   - If you use the global/backend.tf with S3, init will configure remote backend
-3. terraform plan -var-file=terraform.tfvars
-4. terraform apply -var-file=terraform.tfvars
+## Architecture
 
-## Notes & important caveats
-- **Amazon Bedrock**: Bedrock calls in your original ASL are not created by Terraform in this repo. Bedrock is not free-tier and may require account enrollment. The ASL template included is simplified and references LAMBDA and HTTP invoke tasks.
-- **WAF and API Gateway associations**: you might need to manually associate WAF to API Gateway if Terraform cannot derive exact execution ARN in your region. I provided a WAF module; to associate add `aws_wafv2_web_acl_association` in root with the exact API stage execution ARN.
-- **Secrets**: Jira token is placed in Secrets Manager via TF; replace `jira_token_json` variable with your token JSON (do not commit).
-- **Costs**: Step Functions, Lambda, API Gateway have free-tier allowances but may incur cost beyond. Bedrock is billable. WAF and CloudWatch also can incur costs.
-- **Testing**: After deploy, POST to `${module.apigw.api_endpoint}/ingest` with a JSON body resembling what your state machine expects (filename, document, jiraBaseUrl, issueKey, jiraConnectionArn, etc.)
+The pipeline implements a secure, scalable inference pipeline with the following flow:
 
-## Promoting QA -> UAT -> PROD
-- Use separate working directories (`envs/qa`, `envs/uat`, `envs/prod`) and separate tfvars with stricter settings for uat/prod.
-- Use CI/CD (GitHub Actions) with manual approvals for promoting changes.
+**Request Flow**: `Client → WAF → API Gateway → Step Functions → Lambda → Response`
+
+### Components:
+- **API Gateway**: HTTP API for receiving document processing requests
+- **Step Functions**: Orchestrates the document processing workflow with error handling
+- **Lambda**: Processes and analyzes documents (NodeJS runtime)
+- **WAF**: Web Application Firewall with rate limiting and AWS managed rule sets
+- **IAM**: Roles and policies for secure service interactions
+
+## Prerequisites
+- Terraform >= 1.3.0
+- AWS CLI configured with appropriate credentials
+- Proper AWS permissions for creating resources
+
+## Deployment
+
+### Quick Start (Root Module)
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd Terraform_inferance-pipeline
+```
+
+2. Deploy using root module:
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+### Environment-Specific Deployment (Recommended)
+
+For different environments (qa/uat/prod):
+```bash
+cd environments/<environment>
+terraform init
+terraform plan -var-file="terraform.tfvars"
+terraform apply -var-file="terraform.tfvars"
+```
+
+## Configuration
+
+### Environment Variables
+
+Environment-specific variables in `environments/<env>/terraform.tfvars`:
+
+| Variable | QA | UAT | PROD | Description |
+|----------|----|----|------|-------------|
+| `lambda_timeout` | 30s | 45s | 60s | Lambda function timeout |
+| `lambda_memory_size` | 512MB | 768MB | 1024MB | Lambda memory allocation |  
+| `waf_rate_limit` | 2000 | 3000 | 5000 | WAF rate limit (per 5 min) |
+| `region` | ap-south-1 | ap-south-1 | ap-south-1 | AWS region |
+
+## Usage
+
+### API Endpoint
+
+After deployment, use the API endpoint from outputs:
+
+```bash
+# Get endpoint URL
+terraform output api_endpoint
+
+# Test the pipeline
+curl -X POST <api-endpoint>/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filename": "contract.pdf", 
+    "document": "Sample contract content for analysis"
+  }'
+```
+
+### Response Format
+
+Successful response:
+```json
+{
+  "final": {
+    "message": "Document processed successfully",
+    "filename": "contract.pdf",
+    "documentContent": "Sample contract content for analysis"
+  }
+}
+```
+
+## Security Features
+
+- **WAF Protection**: Rate limiting + AWS managed rule sets
+- **IAM Least Privilege**: Service-specific roles and policies
+- **API Gateway Integration**: Secure Step Functions invocation
+
+## Module Structure
+
+```
+modules/
+├── lambda/          # Document processing function
+├── step_function/   # Workflow orchestration
+├── api_gateway/     # HTTP API with Step Functions integration
+├── iam/            # Service roles and policies
+└── waf/            # Web Application Firewall
+```
+
+## Outputs
+
+After deployment:
+- `api_endpoint`: API Gateway endpoint URL
+- `step_function_arn`: Step Function state machine ARN  
+- `lambda_function_name`: Lambda function name
+- `waf_web_acl_arn`: WAF Web ACL ARN
 
 ## Troubleshooting
-- If `aws_sfn_state_machine` fails because `definition` contains unsupported characters or is too large, create an S3 object with the JSON and refer to it, or split your ASL.
-- If Lambda fails to execute due to missing permissions, check CloudWatch logs and add permissions to the IAM role.
 
+### Common Issues:
+1. **IAM Permissions**: Ensure AWS credentials have required permissions
+2. **Resource Limits**: Check AWS service quotas in your region
+3. **WAF Association**: May take a few minutes to propagate
 
-Deploy QA
-cd aws-infra/environments/qa
-terraform init
-terraform apply -var="environment=qa"
+### Validation:
+```bash
+# Check Step Function execution
+aws stepfunctions list-executions --state-machine-arn <step-function-arn>
+
+# Check Lambda logs
+aws logs tail /aws/lambda/tech-extract-text-<env> --follow
+```
