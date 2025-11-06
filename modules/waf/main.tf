@@ -2,7 +2,9 @@ resource "aws_wafv2_web_acl" "web_acl" {
   name  = "tech-waf-${var.env}"
   scope = "REGIONAL"
 
-  default_action { allow {} }
+  default_action { 
+    allow {} 
+  }
 
   visibility_config {
     cloudwatch_metrics_enabled = true
@@ -19,7 +21,9 @@ resource "aws_wafv2_web_acl" "web_acl" {
         aggregate_key_type = "IP"
       }
     }
-    action { block {} }
+    action { 
+      block {} 
+    }
     visibility_config {
       cloudwatch_metrics_enabled = true
       sampled_requests_enabled   = true
@@ -37,7 +41,9 @@ resource "aws_wafv2_web_acl" "web_acl" {
         vendor_name = "AWS"
       }
     }
-    override_action { none {} }
+    override_action { 
+      none {} 
+    }
     visibility_config {
       cloudwatch_metrics_enabled = true
       sampled_requests_enabled   = true
@@ -54,7 +60,9 @@ resource "aws_wafv2_web_acl" "web_acl" {
         vendor_name = "AWS"
       }
     }
-    override_action { none {} }
+    override_action { 
+      none {} 
+    }
     visibility_config {
       cloudwatch_metrics_enabled = true
       sampled_requests_enabled   = true
