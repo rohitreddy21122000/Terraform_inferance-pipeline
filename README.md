@@ -1,4 +1,4 @@
-# Terraform_inferance-pipeline => Tech Contract Analysis - Terraform
+# Terraform_inferance-pipeline 
 
 ## prerequisites
 - Terraform >= 1.2
