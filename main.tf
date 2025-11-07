@@ -50,3 +50,36 @@ output "waf_web_acl_arn" {
   description = "WAF Web ACL ARN"
   value = module.waf.web_acl_arn
 }
+
+module "s3_bucket" {
+  source  = "./modules/s3_bucket"
+  bucket_name = var.bucket_name
+  enable_versioning = true
+  document_retention_days = 90
+  enable_intelligent_tiering = false
+  tags = var.tags
+}
+
+module "lambda_webhook" {
+  source              = "./modules/lambda_webhook"
+  function_name       = "tech-webhooklambda"
+  jira_email          = var.jira_email
+  jira_api_token      = var.jira_api_token
+  jira_base_url       = var.jira_base_url
+  jira_webhook_secret = var.jira_webhook_secret
+  jira_connection_arn = var.jira_connection_arn
+  state_machine_arn   = module.step_functions.state_machine_arn
+  s3_bucket_name      = module.s3_bucket.bucket_name
+  tags                = var.tags
+}
+
+module "step_functions" {
+  source               = "./modules/step_functions"
+  state_machine_name   = "TechContractAnalysisWorkflow"
+  document_processor_arn = var.document_processor_arn
+  jira_connection_arn  = var.jira_connection_arn
+  s3_bucket_name       = module.s3_bucket.bucket_name
+  log_level            = "ERROR"
+  include_execution_data = false
+  tags                 = var.tags
+}

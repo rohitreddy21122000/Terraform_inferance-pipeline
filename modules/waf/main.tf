@@ -2,8 +2,8 @@ resource "aws_wafv2_web_acl" "web_acl" {
   name  = "tech-waf-${var.env}"
   scope = "REGIONAL"
 
-  default_action { 
-    allow {} 
+  default_action {
+    allow {}
   }
 
   visibility_config {
@@ -15,15 +15,18 @@ resource "aws_wafv2_web_acl" "web_acl" {
   rule {
     name     = "rateLimitRule"
     priority = 1
+
     statement {
       rate_based_statement {
-        limit = var.rate_limit
+        limit              = var.rate_limit
         aggregate_key_type = "IP"
       }
     }
-    action { 
-      block {} 
+
+    action {
+      block {}
     }
+
     visibility_config {
       cloudwatch_metrics_enabled = true
       sampled_requests_enabled   = true
@@ -31,48 +34,18 @@ resource "aws_wafv2_web_acl" "web_acl" {
     }
   }
 
-  # Additional security rules
-  rule {
-    name     = "AWSManagedRulesCommonRuleSet"
-    priority = 2
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesCommonRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-    override_action { 
-      none {} 
-    }
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      sampled_requests_enabled   = true
-      metric_name                = "AWSManagedRulesCommonRuleSet"
-    }
-  }
-
-  rule {
-    name     = "AWSManagedRulesKnownBadInputsRuleSet"
-    priority = 3
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesKnownBadInputsRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-    override_action { 
-      none {} 
-    }
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      sampled_requests_enabled   = true
-      metric_name                = "AWSManagedRulesKnownBadInputsRuleSet"
-    }
-  }
+  tags = var.tags
 }
 
-# Associate WAF with API Gateway
+# Association: construct correct resource ARN for API Gateway stage
+locals {
+  resource_arn = var.api_type == "HTTP" ?
+    "arn:aws:apigateway:${var.region}::/apis/${var.api_id}/stages/${var.stage_name}" :
+    "arn:aws:apigateway:${var.region}::/restapis/${var.api_id}/stages/${var.stage_name}"
+}
+
 resource "aws_wafv2_web_acl_association" "api_gateway_association" {
-  resource_arn = var.api_gateway_arn
+  count = length(trim(local.resource_arn)) > 0 ? 1 : 0
+  resource_arn = local.resource_arn
   web_acl_arn  = aws_wafv2_web_acl.web_acl.arn
 }

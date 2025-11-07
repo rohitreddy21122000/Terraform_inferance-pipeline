@@ -1,5 +1,5 @@
-resource "aws_iam_role" "sfn_exec" {
-  name = "sfn-exec-${var.env}"
+resource "aws_iam_role" "sfn_role" {
+  name = "sfn-exec-${var.environment}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -8,34 +8,29 @@ resource "aws_iam_role" "sfn_exec" {
       Action = "sts:AssumeRole"
     }]
   })
+  tags = var.tags
 }
 
 resource "aws_iam_policy" "sfn_policy" {
-  name = "sfn-policy-${var.env}"
+  name = "sfn-policy-${var.environment}"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect = "Allow",
-        Action = [
-          "lambda:InvokeFunction"
-        ],
+        Action = ["lambda:InvokeFunction"],
         Resource = var.lambda_arns
       },
       {
         Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
+        Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],
         Resource = "*"
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "sfn_attach" {
-  role       = aws_iam_role.sfn_exec.name
+resource "aws_iam_role_policy_attachment" "attach_policy" {
+  role       = aws_iam_role.sfn_role.name
   policy_arn = aws_iam_policy.sfn_policy.arn
 }
