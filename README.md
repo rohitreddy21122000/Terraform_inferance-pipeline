@@ -1,134 +1,161 @@
-# Terraform Infrastructure for Tech Contract Analysis Pipeline
+# Terraform S3 Bucket - Beginner Guide
 
-This repository contains Terraform infrastructure as code for deploying a serverless tech contract analysis pipeline on AWS.
-
-## Architecture
-
-The pipeline implements a secure, scalable inference pipeline with the following flow:
-
-**Request Flow**: `Client → WAF → API Gateway → Step Functions → Lambda → Response`
-
-### Components:
-- **API Gateway**: HTTP API for receiving document processing requests
-- **Step Functions**: Orchestrates the document processing workflow with error handling
-- **Lambda**: Processes and analyzes documents (NodeJS runtime)
-- **WAF**: Web Application Firewall with rate limiting and AWS managed rule sets
-- **IAM**: Roles and policies for secure service interactions
+This is a simple Terraform project to create an AWS S3 bucket. Perfect for learning Terraform basics!
 
 ## Prerequisites
-- Terraform >= 1.3.0
-- AWS CLI configured with appropriate credentials
-- Proper AWS permissions for creating resources
 
-## Deployment
+1. **Install Terraform**: Download from [terraform.io](https://www.terraform.io/downloads)
+2. **AWS Account**: You need an AWS account
+3. **AWS CLI**: Install and configure with your credentials
+   ```bash
+   aws configure
+   ```
+   You'll need:
+   - AWS Access Key ID
+   - AWS Secret Access Key
+   - Default region (e.g., us-east-1)
 
-### Quick Start (Root Module)
+## Project Structure
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd Terraform_inferance-pipeline
+```
+.
+├── main.tf           # Main Terraform configuration (AWS provider & S3 bucket)
+├── variables.tf      # Variable definitions
+├── outputs.tf        # Output values to display after creation
+├── terraform.tfvars  # Variable values (customize this!)
+└── README.md         # This file
 ```
 
-2. Deploy using root module:
+## What This Creates
+
+This Terraform configuration creates:
+- ✅ An S3 bucket with a unique name
+- ✅ Versioning enabled (keeps history of file changes)
+- ✅ Public access blocked (security best practice)
+- ✅ Tags for organization
+
+## Step-by-Step Usage
+
+### Step 1: Customize Your Bucket Name
+
+Edit `terraform.tfvars` and change the bucket name to something unique:
+
+```hcl
+bucket_name = "my-unique-bucket-name-12345"
+```
+
+**Important**: S3 bucket names must be:
+- Globally unique across ALL AWS accounts
+- 3-63 characters long
+- Lowercase letters, numbers, and hyphens only
+- No underscores or uppercase letters
+
+### Step 2: Initialize Terraform
+
+This downloads the AWS provider plugin:
+
 ```bash
 terraform init
+```
+
+### Step 3: Preview Changes
+
+See what Terraform will create:
+
+```bash
 terraform plan
+```
+
+### Step 4: Create the S3 Bucket
+
+Apply the configuration:
+
+```bash
 terraform apply
 ```
 
-### Environment-Specific Deployment (Recommended)
+Type `yes` when prompted to confirm.
 
-For different environments (qa/uat/prod):
-```bash
-cd environments/<environment>
-terraform init
-terraform plan -var-file="terraform.tfvars"
-terraform apply -var-file="terraform.tfvars"
+### Step 5: View Outputs
+
+After creation, you'll see outputs like:
+```
+bucket_name   = "my-unique-bucket-name-12345"
+bucket_arn    = "arn:aws:s3:::my-unique-bucket-name-12345"
+bucket_region = "us-east-1"
 ```
 
-## Configuration
+## Managing Your Infrastructure
 
-### Environment Variables
-
-Environment-specific variables in `environments/<env>/terraform.tfvars`:
-
-| Variable | QA | UAT | PROD | Description |
-|----------|----|----|------|-------------|
-| `lambda_timeout` | 30s | 45s | 60s | Lambda function timeout |
-| `lambda_memory_size` | 512MB | 768MB | 1024MB | Lambda memory allocation |  
-| `waf_rate_limit` | 2000 | 3000 | 5000 | WAF rate limit (per 5 min) |
-| `region` | ap-south-1 | ap-south-1 | ap-south-1 | AWS region |
-
-## Usage
-
-### API Endpoint
-
-After deployment, use the API endpoint from outputs:
+### View Current State
 
 ```bash
-# Get endpoint URL
-terraform output api_endpoint
-
-# Test the pipeline
-curl -X POST <api-endpoint>/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filename": "contract.pdf", 
-    "document": "Sample contract content for analysis"
-  }'
+terraform show
 ```
 
-### Response Format
+### Destroy Resources
 
-Successful response:
-```json
-{
-  "final": {
-    "message": "Document processed successfully",
-    "filename": "contract.pdf",
-    "documentContent": "Sample contract content for analysis"
-  }
-}
+When you're done testing, clean up to avoid charges:
+
+```bash
+terraform destroy
 ```
 
-## Security Features
+Type `yes` to confirm deletion.
 
-- **WAF Protection**: Rate limiting + AWS managed rule sets
-- **IAM Least Privilege**: Service-specific roles and policies
-- **API Gateway Integration**: Secure Step Functions invocation
+## Common Commands Cheat Sheet
 
-## Module Structure
+| Command | Description |
+|---------|-------------|
+| `terraform init` | Initialize the project (run first) |
+| `terraform plan` | Preview changes before applying |
+| `terraform apply` | Create/update resources |
+| `terraform destroy` | Delete all resources |
+| `terraform show` | View current state |
+| `terraform fmt` | Format your .tf files nicely |
+| `terraform validate` | Check for syntax errors |
 
-```
-modules/
-├── lambda/          # Document processing function
-├── step_function/   # Workflow orchestration
-├── api_gateway/     # HTTP API with Step Functions integration
-├── iam/            # Service roles and policies
-└── waf/            # Web Application Firewall
-```
+## Understanding the Files
 
-## Outputs
+### main.tf
+- Defines the AWS provider and region
+- Creates the S3 bucket resource
+- Enables versioning and blocks public access
 
-After deployment:
-- `api_endpoint`: API Gateway endpoint URL
-- `step_function_arn`: Step Function state machine ARN  
-- `lambda_function_name`: Lambda function name
-- `waf_web_acl_arn`: WAF Web ACL ARN
+### variables.tf
+- Declares variables (inputs) that can be customized
+- Includes descriptions and default values
+
+### outputs.tf
+- Defines what information to show after creation
+- Useful for getting resource details
+
+### terraform.tfvars
+- Where you set actual values for variables
+- This is what you'll edit most often
+
+## Next Steps
+
+Once comfortable with this, you can:
+1. Add more S3 bucket features (encryption, lifecycle rules)
+2. Create multiple resources
+3. Use modules to organize code
+4. Set up remote state storage
+5. Add more AWS services (EC2, Lambda, etc.)
 
 ## Troubleshooting
 
-### Common Issues:
-1. **IAM Permissions**: Ensure AWS credentials have required permissions
-2. **Resource Limits**: Check AWS service quotas in your region
-3. **WAF Association**: May take a few minutes to propagate
+**Error: Bucket name already exists**
+- Change the `bucket_name` in `terraform.tfvars` to something more unique
 
-### Validation:
-```bash
-# Check Step Function execution
-aws stepfunctions list-executions --state-machine-arn <step-function-arn>
+**Error: AWS credentials not found**
+- Run `aws configure` to set up your credentials
 
-# Check Lambda logs
-aws logs tail /aws/lambda/tech-extract-text-<env> --follow
-```
+**Error: Region not authorized**
+- Change `aws_region` in `terraform.tfvars` to a region you have access to
+
+## Learn More
+
+- [Terraform Documentation](https://www.terraform.io/docs)
+- [AWS S3 Documentation](https://docs.aws.amazon.com/s3/)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
