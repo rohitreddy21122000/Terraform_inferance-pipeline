@@ -4,14 +4,6 @@
 resource "aws_s3_bucket" "main" {
   bucket = var.bucket_name
 
-  # Conditional create_bucket_configuration for regions other than us-east-1
-  dynamic "create_bucket_configuration" {
-    for_each = var.aws_region == "us-east-1" ? [] : [1]
-    content {
-      location_constraint = var.aws_region
-    }
-  }
-
   tags = {
     Name = var.bucket_name
   }
@@ -62,13 +54,6 @@ resource "aws_s3_object" "folder" {
 ###############################################
 resource "aws_s3_bucket" "log_bucket" {
   bucket = var.log_bucket_name
-
-  dynamic "create_bucket_configuration" {
-    for_each = var.aws_region == "us-east-1" ? [] : [1]
-    content {
-      location_constraint = var.aws_region
-    }
-  }
 
   tags = {
     Name = var.log_bucket_name

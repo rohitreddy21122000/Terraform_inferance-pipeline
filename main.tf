@@ -25,8 +25,4 @@ module "s3_bucket" {
   lifecycle_rule_name = "dummy-expiration-rule"
   expiration_days     = 90
   aws_region          = var.aws_region
-
-  providers = {
-    aws = aws
-  }
 }
