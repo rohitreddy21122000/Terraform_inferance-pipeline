@@ -1,0 +1,103 @@
+name: 'Terraform QA Deployment'
+
+on:
+  push:
+    branches:
+      - develop
+      - qa
+  pull_request:
+    branches:
+      - develop
+      - qa
+
+env:
+  TF_VERSION: '1.5.0'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  terraform-qa:
+    name: 'Terraform QA'
+    runs-on: ubuntu-latest
+    environment: qa
+    
+    defaults:
+      run:
+        shell: bash
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_QA }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_QA }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+    
+    - name: Terraform Format Check
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+    
+    - name: Terraform Init
+      id: init
+      run: terraform init
+    
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+    
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform plan -no-color -var-file="environments/qa.tfvars" \
+          -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_QA }}" \
+          -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_QA }}" \
+          -out=tfplan
+      continue-on-error: false
+    
+    - name: Comment PR with Plan
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+          #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+          #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+          #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+          
+          <details><summary>Show Plan</summary>
+          
+          \`\`\`terraform
+          ${{ steps.plan.outputs.stdout }}
+          \`\`\`
+          
+          </details>
+          
+          *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Environment: \`QA\`*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+    
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/qa' && github.event_name == 'push'
+      run: terraform apply -auto-approve tfplan
+    
+    - name: Upload Terraform State
+      if: github.ref == 'refs/heads/qa' && github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-state-qa
+        path: terraform.tfstate
+        retention-days: 30

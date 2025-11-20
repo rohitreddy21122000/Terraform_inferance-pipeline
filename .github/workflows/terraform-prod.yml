@@ -1,0 +1,145 @@
+name: 'Terraform Production Deployment'
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+env:
+  TF_VERSION: '1.5.0'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  terraform-prod:
+    name: 'Terraform Production'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    defaults:
+      run:
+        shell: bash
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+    
+    - name: Terraform Format Check
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+    
+    - name: Terraform Init
+      id: init
+      run: terraform init
+    
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+    
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform plan -no-color -var-file="environments/prod.tfvars" \
+          -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_PROD }}" \
+          -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_PROD }}" \
+          -out=tfplan
+      continue-on-error: false
+    
+    - name: Wait for Manual Approval
+      if: github.event_name == 'push' || github.event.inputs.action == 'apply'
+      uses: trstringer/manual-approval@v1
+      with:
+        secret: ${{ secrets.GITHUB_TOKEN }}
+        approvers: rohitreddy21122000  # Replace with your GitHub username
+        minimum-approvals: 1
+        issue-title: "Production Deployment Approval Required"
+        issue-body: |
+          Please review the Terraform plan and approve this production deployment.
+          
+          **Environment:** Production
+          **Triggered by:** ${{ github.actor }}
+          **Branch:** ${{ github.ref }}
+          
+          Review the plan output in the workflow logs before approving.
+    
+    - name: Terraform Apply
+      if: (github.event_name == 'push' || github.event.inputs.action == 'apply') && steps.plan.outcome == 'success'
+      run: terraform apply -auto-approve tfplan
+    
+    - name: Terraform Destroy
+      if: github.event.inputs.action == 'destroy'
+      run: |
+        terraform destroy -auto-approve -var-file="environments/prod.tfvars" \
+          -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_PROD }}" \
+          -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_PROD }}"
+    
+    - name: Upload Terraform State
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-state-prod
+        path: terraform.tfstate
+        retention-days: 90
+    
+    - name: Notify Slack on Success
+      if: success() && (github.event_name == 'push' || github.event.inputs.action == 'apply')
+      uses: slackapi/slack-github-action@v1
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        payload: |
+          {
+            "text": "✅ Production Deployment Successful",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Production Deployment Successful* ✅\n*Environment:* Production\n*Deployed by:* ${{ github.actor }}\n*Commit:* ${{ github.sha }}"
+                }
+              }
+            ]
+          }
+    
+    - name: Notify Slack on Failure
+      if: failure()
+      uses: slackapi/slack-github-action@v1
+      with:
+        webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        payload: |
+          {
+            "text": "❌ Production Deployment Failed",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Production Deployment Failed* ❌\n*Environment:* Production\n*Triggered by:* ${{ github.actor }}\n*Commit:* ${{ github.sha }}"
+                }
+              }
+            ]
+          }
