@@ -47,3 +47,32 @@ module "waf" {
     ManagedBy   = "Terraform"
   }
 }
+
+# Call the API Gateway module
+module "api_gateway" {
+  source = "./modules/api_gateway"
+
+  api_name             = "tech-webhookhandler-api"
+  resource_path        = "webhook"
+  stage_name           = "devstage"
+  
+  lambda_function_name = module.waf.webhook_lambda_function_name
+  lambda_invoke_arn    = module.waf.webhook_lambda_invoke_arn
+  
+  waf_web_acl_arn         = module.waf.waf_web_acl_arn
+  enable_waf_association  = true
+  
+  enable_cloudwatch_logging = false  # Set to true if you want CloudWatch logging
+  
+  throttle_rate_limit  = 1000
+  throttle_burst_limit = 500
+  
+  region = "us-east-1"
+  
+  tags = {
+    Project     = "Tech"
+    Environment = "Production"
+    ManagedBy   = "Terraform"
+  }
+}
+

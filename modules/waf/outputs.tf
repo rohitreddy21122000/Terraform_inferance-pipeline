@@ -18,6 +18,11 @@ output "webhook_lambda_function_arn" {
   value       = aws_lambda_function.webhook_handler.arn
 }
 
+output "webhook_lambda_invoke_arn" {
+  description = "Invoke ARN of the webhook Lambda function"
+  value       = aws_lambda_function.webhook_handler.invoke_arn
+}
+
 output "extract_lambda_function_name" {
   description = "Name of the extract text Lambda function"
   value       = aws_lambda_function.extract_text.function_name
