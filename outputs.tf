@@ -65,3 +65,14 @@ output "webhook_lambda_function_name" {
   description = "Name of the webhook Lambda function"
   value       = module.waf.webhook_lambda_function_name
 }
+
+# EventBridge Outputs
+output "eventbridge_connection_name" {
+  description = "Name of the EventBridge connection"
+  value       = module.eventbridge.connection_name
+}
+
+output "eventbridge_connection_arn" {
+  description = "ARN of the EventBridge connection"
+  value       = module.eventbridge.connection_arn
+}

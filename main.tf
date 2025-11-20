@@ -76,3 +76,19 @@ module "api_gateway" {
   }
 }
 
+# Call the EventBridge module
+module "eventbridge" {
+  source = "./modules/eventbridge"
+
+  connection_name     = "tech-webhookconnection"
+  connection_username = var.eventbridge_username
+  connection_password = var.eventbridge_password
+  
+  region = "us-east-1"
+  
+  tags = {
+    Project     = "Tech"
+    Environment = "Production"
+    ManagedBy   = "Terraform"
+  }
+}

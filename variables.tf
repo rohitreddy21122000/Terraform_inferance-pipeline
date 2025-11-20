@@ -33,3 +33,18 @@ variable "region" {
   type        = string
   default     = "us-east-1"
 }
+
+# EventBridge Connection Variables
+variable "eventbridge_username" {
+  description = "Username for EventBridge connection basic authentication"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "eventbridge_password" {
+  description = "Password for EventBridge connection basic authentication"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

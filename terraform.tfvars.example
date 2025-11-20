@@ -1,0 +1,6 @@
+# EventBridge Connection Credentials
+# Copy this file to terraform.tfvars and fill in your actual credentials
+# DO NOT commit terraform.tfvars to version control!
+
+eventbridge_username = "your-username-here"
+eventbridge_password = "your-password-here"
