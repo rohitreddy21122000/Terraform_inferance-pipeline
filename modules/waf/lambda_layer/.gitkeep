@@ -1,0 +1,2 @@
+# This file ensures the directory structure is preserved in git
+# The python/ directory will be created when dependencies are installed
