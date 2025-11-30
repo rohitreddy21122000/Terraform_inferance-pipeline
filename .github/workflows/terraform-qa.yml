@@ -9,6 +9,17 @@ on:
     branches:
       - develop
       - qa
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
 
 env:
   TF_VERSION: '1.5.0'
@@ -59,11 +70,21 @@ jobs:
     
     - name: Terraform Plan
       id: plan
+      if: github.event.inputs.action != 'destroy' || github.event_name != 'workflow_dispatch'
       run: |
         terraform plan -no-color -var-file="environments/qa.tfvars" \
           -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_QA }}" \
           -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_QA }}" \
           -out=tfplan
+      continue-on-error: false
+    
+    - name: Terraform Destroy Plan
+      id: destroy-plan
+      if: github.event.inputs.action == 'destroy' && github.event_name == 'workflow_dispatch'
+      run: |
+        terraform plan -destroy -no-color -var-file="environments/qa.tfvars" \
+          -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_QA }}" \
+          -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_QA }}"
       continue-on-error: false
     
     - name: Comment PR with Plan
@@ -95,8 +116,17 @@ jobs:
           })
     
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/qa' && github.event_name == 'push'
+      if: |
+        (github.ref == 'refs/heads/qa' && github.event_name == 'push') ||
+        (github.event.inputs.action == 'apply' && github.event_name == 'workflow_dispatch')
       run: terraform apply -auto-approve tfplan
+    
+    - name: Terraform Destroy
+      if: github.event.inputs.action == 'destroy' && github.event_name == 'workflow_dispatch'
+      run: |
+        terraform destroy -auto-approve -var-file="environments/qa.tfvars" \
+          -var="eventbridge_username=${{ secrets.EVENTBRIDGE_USERNAME_QA }}" \
+          -var="eventbridge_password=${{ secrets.EVENTBRIDGE_PASSWORD_QA }}"
     
     - name: Upload Terraform State
       if: github.ref == 'refs/heads/qa' && github.event_name == 'push'
